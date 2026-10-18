@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rm-core"
+version = "0.1.0"
+description = "Contracts that connect ai-rm components: accelerators, memory tiers, KV transport, placement, metrics"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "BSD-3-Clause"}
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/ai-computing/rm-core"
+
+# Reference implementations (no hardware). Real adapters register the same way in their own repos.
+[project.entry-points."airm.accelerator_providers"]
+sim = "rm_core.reference:SimAcceleratorProvider"
+
+[project.entry-points."airm.kv_transports"]
+loopback = "rm_core.reference:LoopbackTransport"
+
+[project.entry-points."airm.placements"]
+greedy = "rm_core.reference:GreedyPlacement"
+
+[tool.setuptools.packages.find]
+where = ["src"]
