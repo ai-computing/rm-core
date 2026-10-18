@@ -77,7 +77,10 @@ A `KVTransport`:
    Waiting a handle twice MUST raise `TransportError`.
 5. A transport MUST NOT silently fall back to another path (e.g. host staging when P2P fails).
    Choosing a fallback is the caller's decision, made by name.
-6. Every completed transfer SHOULD be reported as `kv_transfer_ms` (and MAY as `kv_transfer_gbps`)
+6. A transport that needs real devices SHOULD implement `conformance_case()` returning
+   `(src_tier, dst_tier, layout)` present on the machine, and raise
+   `rm_core.conformance.NoHardware` when they are absent (reported as SKIP, not FAIL).
+7. Every completed transfer SHOULD be reported as `kv_transfer_ms` (and MAY as `kv_transfer_gbps`)
    with tag `kv_transport=<name>`.
 
 ## 5. Workloads and placement (L3–L4)

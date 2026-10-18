@@ -20,6 +20,10 @@ from .metrics import Measurement
 from .workload import Placement, PlacementDecision, Workload
 
 
+class NoHardware(RuntimeError):
+    """Raised by an adapter's conformance_case() when the devices it needs are not on this machine."""
+
+
 def check_accelerator_provider(provider) -> List[Accelerator]:
     assert isinstance(provider, AcceleratorProvider), "missing name/discover()"
     assert isinstance(provider.name, str) and provider.name, "provider.name must be a non-empty string"
@@ -37,10 +41,15 @@ def check_accelerator_provider(provider) -> List[Accelerator]:
 def check_kv_transport(transport, tiers: Optional[Tuple[MemoryTier, MemoryTier]] = None,
                        layout: Optional[KVLayout] = None) -> None:
     assert isinstance(transport, KVTransport), "missing one of name/supports/plan/submit/wait/close"
-    src, dst = tiers or (MemoryTier("conf-src", "host-dram", 1 << 30), MemoryTier("conf-dst", "host-dram", 1 << 30))
+    # A hardware transport MAY offer conformance_case() -> (src, dst, layout) for tiers present on
+    # this machine, or raise rm_core.conformance.NoHardware to be reported as SKIP.
+    if tiers is None and hasattr(transport, "conformance_case"):
+        src, dst, layout = transport.conformance_case()
+    else:
+        src, dst = tiers or (MemoryTier("conf-src", "host-dram", 1 << 30), MemoryTier("conf-dst", "host-dram", 1 << 30))
     layout = layout or KVLayout(num_layers=2, num_kv_heads=2, head_dim=8, dtype="bf16")
     if not transport.supports(src, dst):
-        raise AssertionError(f"{transport.name} does not support the test tiers; pass tiers= that it supports")
+        raise AssertionError(f"{transport.name} does not support the test tiers; implement conformance_case()")
     plan = transport.plan("conf-1", src, dst, layout, layout, (0, 16))
     assert plan.nbytes == 16 * layout.bytes_per_token(), "plan.nbytes must equal tokens * bytes_per_token"
     handle = transport.submit(plan)
@@ -104,6 +113,8 @@ def main(argv: List[str]) -> int:
         try:
             CHECKS[group](registry.load(group, name))
             print(f"PASS  {group}:{name}")
+        except NoHardware as e:
+            print(f"SKIP  {group}:{name}: {e}")
         except Exception as e:  # report every failure, keep going
             failed += 1
             print(f"FAIL  {group}:{name}: {type(e).__name__}: {e}")
