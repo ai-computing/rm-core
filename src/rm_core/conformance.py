@@ -20,8 +20,7 @@ from .metrics import Measurement
 from .workload import Placement, PlacementDecision, Workload
 
 
-class NoHardware(RuntimeError):
-    """Raised by an adapter's conformance_case() when the devices it needs are not on this machine."""
+from .errors import NoHardware  # noqa: E402  (re-exported: rm_core.conformance.NoHardware)
 
 
 def check_accelerator_provider(provider) -> List[Accelerator]:
@@ -35,6 +34,10 @@ def check_accelerator_provider(provider) -> List[Accelerator]:
         assert isinstance(a, Accelerator), f"discover() returned {type(a).__name__}, not Accelerator"
         a.validate()
     assert [a.id for a in provider.discover()] == ids, "discover() must be stable across calls"
+    from . import k8s
+    for a in found:
+        back = k8s.from_profile(k8s.accelerator_profile(a))
+        assert back == a, f"{a.id}: AcceleratorProfile round-trip changed the value ({back!r})"
     return found
 
 
