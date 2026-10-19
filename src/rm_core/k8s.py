@@ -1,6 +1,6 @@
 """How L1 information appears in Kubernetes: node labels and AcceleratorProfile objects.
 
-The node daemon (rm_abstract_layer) writes these; the placement controller, EPP scorer and
+The node daemon (rm-accel) writes these; the placement controller, EPP scorer and
 lmd-top read them. CRD: k8s/acceleratorprofile.crd.yaml.
 """
 from __future__ import annotations
