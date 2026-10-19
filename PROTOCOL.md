@@ -99,7 +99,8 @@ limited to `rm_core.workload.SLO_KEYS`.
 - SHOULD name the KV transport to use between prefill and decode in `kv_transport`.
 
 The placement controller runs this policy over `AcceleratorProfile`s and live metrics, and writes
-its decisions where the llm-d EPP scorer and serving pods read them (see ai-rm docs).
+its decisions to the placement document (§5.4), where the llm-d EPP scorer, serving pods and
+lmd-top read them.
 
 ### 5.3 Workload runners
 
@@ -107,6 +108,75 @@ Serving and training components register a runner under `airm.workloads`. In v0.
 callable that accepts a `Workload` plus keyword configuration and starts the work; its required
 configuration keys MUST be documented in the component's README. The runner MUST select its KV
 transport by name (`kv_transport=`), never by hard-coded import. (Formalized in v0.2.)
+
+### 5.4 Placement document (`airm-placement`, document version 0.1)
+
+The hand-off between the placement controller (writer) and its readers is one JSON document.
+`rm_core.placement` implements it (`validate(doc)`, `PlacementDocument`, `build`, `parse`,
+`configmap`); `k8s/airm-placement.schema.json` is the JSON Schema for the structure. The document
+version is the `protocol` field and follows the protocol version (§1).
+
+**Location.** ConfigMap `airm-placement` in the namespace of the llm-d InferencePools it describes
+(the llm-d namespace, e.g. `llm-serving`), key `decisions.json`, value a UTF-8 JSON object. Writers
+MUST NOT put decisions under other keys. The ConfigMap SHOULD carry the annotation
+`airm.ai-computing.io/protocol: "<version>"` and the label `app.kubernetes.io/part-of: ai-rm`.
+
+```json
+{
+  "protocol": "0.1",
+  "generation": 3,
+  "updatedAt": "2026-10-19T00:00:00Z",
+  "placement": "topology",
+  "decisions": [
+    {"pool": "llama8b-pd-pool",
+     "workload": {"kind": "prefill", "model": "meta-llama/Llama-3.1-8B-Instruct",
+                  "slo": {"tpot_p90_ms": 100},
+                  "labels": {"airm.ai-computing.io/accelerator": "furiosa.RNGD"}},
+     "acceleratorIds": ["<node>/furiosa:0"], "kvTransport": "shm", "reason": "highest peak"},
+    {"pool": "llama8b-pd-pool",
+     "workload": {"kind": "decode", "model": "meta-llama/Llama-3.1-8B-Instruct",
+                  "slo": {"tpot_p90_ms": 100},
+                  "labels": {"airm.ai-computing.io/accelerator": "furiosa.RNGD"}},
+     "acceleratorIds": ["<node>/furiosa:1"], "kvTransport": "shm", "reason": "most memory"}
+  ]
+}
+```
+
+| Field | Rule |
+|---|---|
+| `protocol` | REQUIRED. `"MAJOR.MINOR"`, the protocol version the writer implements |
+| `generation` | REQUIRED. Integer ≥ 0; `0` only for the empty document |
+| `updatedAt` | REQUIRED. RFC 3339 UTC (`YYYY-MM-DDTHH:MM:SSZ`) time of the last change; `null` only when `generation` is 0 |
+| `placement` | Name of the `airm.placements` policy that produced the decisions. REQUIRED when `generation` > 0 |
+| `decisions` | REQUIRED. List, empty in the empty document |
+| `decisions[].pool` | REQUIRED. InferencePool name (= the EPP's `--pool-name`) |
+| `decisions[].workload` | REQUIRED. `Workload` in camelCase: `kind` and `model` REQUIRED; `slo` (keys from `SLO_KEYS`), `labels` (strings), `precision`, `batchHint` OPTIONAL |
+| `decisions[].workload.kind` | The role. A prefill/decode pool has one `prefill` and one `decode` decision; an aggregated pool (any role) has one `serve` decision |
+| `decisions[].workload.labels["airm.ai-computing.io/accelerator"]` | OPTIONAL. Card type the role was restricted to, `<vendor>.<model>` as in the node labels (§3.1). When set, every card in `acceleratorIds` MUST be of that vendor |
+| `decisions[].acceleratorIds` | REQUIRED. Card references: `Accelerator.id`s `<node>/<vendor>:<index>` (= `AcceleratorProfile.spec.id`), no duplicates. The node of a card is the part before `/` |
+| `decisions[].kvTransport` | `airm.kv_transports` name for the prefill→decode hand-off; `""` or absent if none |
+| `decisions[].reason` | Human-readable. REQUIRED (non-empty) when `acceleratorIds` is empty, which means nothing fits |
+
+The empty document, valid before the first placement, is
+`{"protocol": "0.1", "generation": 0, "updatedAt": null, "decisions": []}`.
+
+Writers:
+- MUST write only documents that `rm_core.placement.validate` accepts.
+- MUST write at most one decision per (`pool`, `workload.kind`).
+- MUST increase `generation` by at least one whenever `placement` or `decisions` change, and MUST
+  NOT decrease it. A writer SHOULD NOT rewrite a document whose `placement` and `decisions` are
+  unchanged; if it does, it MUST keep the same `generation`.
+- MUST NOT put addresses or credentials in the document (§7): cards are referenced by id only and
+  resolved through `AcceleratorProfile`s.
+
+Readers:
+- MUST ignore fields they do not know, at every level, and MUST accept a newer minor `protocol`
+  with the same major version.
+- MUST NOT apply a document whose `generation` is not greater than the last one they applied
+  (`rm_core.placement.is_newer`); equal generations have equal content.
+- MUST behave as if the ConfigMap did not exist when it is absent, when `decisions` is empty, or
+  when it has no decision for their pool.
+- SHOULD treat a document that fails validation as absent and report it, not crash.
 
 ## 6. Metrics
 
@@ -130,11 +200,18 @@ keys. Site values come from the environment (`cluster.local.env`), never from co
 ## 8. Conformance
 
 `python -m rm_core.conformance [group [name ...]]` loads every registered implementation (or the
-named ones) and runs the checks for its group. A component is conformant when its adapters pass,
+named ones) and runs the checks for its group. For `airm.placements` the checks include that the
+policy's decisions make a valid placement document (§5.4). A component is conformant when its adapters pass,
 its tests pass, and `check_sensitive.py` reports clean. Each component's CI SHOULD run the checks
 against its own entry points.
 
 ## Change log
+
+- 0.1.2 (2026-10-19, rm-core patch; protocol stays 0.1): §5.4 makes the `airm-placement` document
+  normative as already written by rm-controller and hetero-llm-d and read by lmd-top (no field
+  changed). `rm_core.placement` (typed model, stdlib validator, `build` with the generation rule),
+  `k8s/airm-placement.schema.json`, and the `airm.placements` conformance check now also validates
+  the document made from a policy's decisions.
 
 - 0.1.1 (2026-10-19, rm-core patch; protocol stays 0.1): `AcceleratorProfile` keeps `extra`
   (CRD field added) and the provider check now verifies the profile round-trip; `NoHardware` moved to
