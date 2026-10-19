@@ -195,6 +195,7 @@ src/rm_core/
 ├── accelerator.py   # L1: Accelerator, AcceleratorProvider; vendor, memory, precision, interconnect enums
 ├── memory.py        # L2: MemoryTier, KVLayout, TransferPlan/Handle/Result, KVTransport
 ├── workload.py      # L3–L4: Workload, PlacementDecision, Placement; workload kinds, SLO keys
+├── placement.py     # L4: airm-placement document (decisions.json): model, validate(), build()
 ├── metrics.py       # METRICS, TAG_KEYS, Measurement, prometheus_name
 ├── k8s.py           # AcceleratorProfile objects and node labels; from_profile()
 ├── registry.py      # entry-point groups: available(), load(), groups()
@@ -202,6 +203,7 @@ src/rm_core/
 ├── conformance.py   # python -m rm_core.conformance
 └── errors.py        # ContractError, TransportError, NoHardware
 k8s/acceleratorprofile.crd.yaml   # AcceleratorProfile CRD (airm.ai-computing.io/v1alpha1)
+k8s/airm-placement.schema.json    # JSON Schema of the airm-placement document (PROTOCOL §5.4)
 ```
 
 A node daemon publishes each device as a cluster-scoped `AcceleratorProfile` plus summary node labels
@@ -222,6 +224,8 @@ CI runs the tests on Python 3.9–3.12, then `python -m rm_core.conformance` and
 
 - [x] Protocol v0.1: contracts, `AcceleratorProfile` CRD, reference implementations, conformance checks
 - [x] 0.1.1: `AcceleratorProfile` keeps `extra`, `NoHardware` reported as SKIP under `python -m`, metric migration rule
+- [x] 0.1.2 (unreleased): `airm-placement` document normative (§5.4), `rm_core.placement` validator, JSON Schema,
+      placement conformance validates the document
 - [ ] Protocol v0.2: `MemoryRegion` (owner, fd/offset, size) in transfer plans, so device-to-device transports
       can bind live buffers and pass conformance with a hardware fixture
 - [ ] Protocol v0.2: formalized workload-runner interface (`airm.workloads`)
@@ -232,7 +236,7 @@ Change log: [PROTOCOL.md § Change log](PROTOCOL.md#change-log).
 
 | | |
 |---|---|
-| **Specification** | [PROTOCOL.md](PROTOCOL.md) · [AcceleratorProfile CRD](k8s/acceleratorprofile.crd.yaml) |
+| **Specification** | [PROTOCOL.md](PROTOCOL.md) · [AcceleratorProfile CRD](k8s/acceleratorprofile.crd.yaml) · [placement schema](k8s/airm-placement.schema.json) |
 | **ai-rm** | [Umbrella](https://github.com/ai-computing/ai-rm) · [Interfaces](https://github.com/ai-computing/ai-rm/blob/master/docs/interfaces.md) · [Integration guide](https://github.com/ai-computing/ai-rm/blob/master/docs/integration-guide.md) |
 
 ## 📄 License

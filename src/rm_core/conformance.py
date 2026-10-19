@@ -9,9 +9,11 @@ checks use small synthetic values so they also run in CI without accelerators.
 """
 from __future__ import annotations
 
+import json
 import sys
 from typing import Callable, Dict, List, Optional, Tuple
 
+from . import placement as placement_doc
 from . import registry
 from .accelerator import Accelerator, AcceleratorProvider
 from .errors import ContractError, TransportError
@@ -80,14 +82,23 @@ def check_placement(placement, pool: Optional[List[Accelerator]] = None) -> None
     assert isinstance(placement, Placement), "missing name/place()"
     pool = pool or SimAcceleratorProvider("conf-node").discover()
     ids = {a.id for a in pool}
+    entries = []
     for kind in ("prefill", "decode"):
         w = Workload(kind=kind, model="conformance-model", slo={"tpot_p90_ms": 100})
         d1, d2 = placement.place(w, pool), placement.place(w, pool)
         assert isinstance(d1, PlacementDecision), "place() must return a PlacementDecision"
         assert set(d1.accelerator_ids) <= ids, f"placed outside the pool: {d1.accelerator_ids}"
         assert d1 == d2, "place() must be deterministic for the same inputs"
-    empty = placement.place(Workload(kind="decode", model="m"), [])
+        entries.append(placement_doc.Decision.from_placement("conf-pool", w, d1))
+    w = Workload(kind="decode", model="m")
+    empty = placement.place(w, [])
     assert empty.accelerator_ids == [] and empty.reason, "empty pool -> empty decision with a reason"
+    entries.append(placement_doc.Decision.from_placement("conf-empty-pool", w, empty))
+    # §5.4: the decisions must make a valid airm-placement document.
+    doc = placement_doc.PlacementDocument(1, "2026-01-01T00:00:00Z", placement.name, entries)
+    errors = placement_doc.validate(json.loads(doc.to_json()))
+    assert not errors, f"decisions do not make a valid airm-placement document: {errors}"
+    assert placement_doc.PlacementDocument.from_dict(doc.to_dict()) == doc, "document round-trip changed it"
 
 
 def check_measurements(measurements: List[Measurement]) -> None:
