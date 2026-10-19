@@ -26,6 +26,19 @@ class K8sTest(unittest.TestCase):
         for acc in SimAcceleratorProvider("n1").discover():
             self.assertEqual(k8s.from_profile(k8s.accelerator_profile(acc)), acc)
 
+    def test_profile_keeps_extra(self):
+        a = Accelerator(id="n1/furiosa:0", node="n1", vendor="furiosa", model="RNGD", memory_bytes=1,
+                        memory_kind="hbm", extra={"pci_bdf": "0000:03:00.0", "firmware": "x"})
+        self.assertEqual(k8s.from_profile(k8s.accelerator_profile(a)), a)
+
+    def test_no_hardware_is_one_class(self):
+        import subprocess, sys
+        from rm_core import errors
+        self.assertIs(conformance.NoHardware, errors.NoHardware)
+        code = ("import runpy, rm_core.errors as e; g = runpy.run_module('rm_core.conformance', run_name='not_main');"
+                "assert g['NoHardware'] is e.NoHardware")
+        self.assertEqual(subprocess.run([sys.executable, "-c", code]).returncode, 0)
+
     def test_node_labels(self):
         labels = k8s.node_labels(SimAcceleratorProvider("n1").discover())
         self.assertEqual(labels["airm.ai-computing.io/furiosa.RNGD"], "1")

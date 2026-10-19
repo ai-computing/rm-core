@@ -5,16 +5,16 @@ adapters and register them under the entry-point groups in `rm_core.registry`; r
 implementation by name from configuration. See PROTOCOL.md.
 """
 from .accelerator import Accelerator, AcceleratorProvider
-from .errors import ContractError, TransportError
+from .errors import ContractError, NoHardware, TransportError
 from .memory import KVLayout, KVTransport, MemoryTier, TransferHandle, TransferPlan, TransferResult
 from .metrics import METRICS, Measurement, prometheus_name
 from .workload import Placement, PlacementDecision, Workload
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 PROTOCOL_VERSION = "0.1"
 
 __all__ = [
-    "Accelerator", "AcceleratorProvider", "ContractError", "TransportError", "KVLayout", "KVTransport",
+    "Accelerator", "AcceleratorProvider", "ContractError", "NoHardware", "TransportError", "KVLayout", "KVTransport",
     "MemoryTier", "TransferHandle", "TransferPlan", "TransferResult", "METRICS", "Measurement",
     "prometheus_name", "Placement", "PlacementDecision", "Workload", "PROTOCOL_VERSION",
 ]

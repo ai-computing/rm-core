@@ -42,3 +42,7 @@ spec:
                 interconnect:
                   type: array
                   items: {type: string}
+                extra:
+                  type: object
+                  description: vendor details (PCI address, firmware, product name); no addresses or secrets
+                  additionalProperties: {type: string}

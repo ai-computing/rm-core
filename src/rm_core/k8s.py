@@ -38,6 +38,7 @@ def accelerator_profile(acc: Accelerator) -> dict:
             "peakTflops": {k: str(v) for k, v in acc.peak_tflops.items()}, "peakSource": acc.peak_source,
             "powerLimitW": None if acc.power_limit_w is None else str(acc.power_limit_w),
             "interconnect": list(acc.interconnect),
+            "extra": {k: str(v) for k, v in acc.extra.items()},
         },
     }
 
@@ -51,4 +52,5 @@ def from_profile(obj: dict) -> Accelerator:
         peak_source=s.get("peakSource", ""),
         power_limit_w=float(s["powerLimitW"]) if s.get("powerLimitW") else None,
         interconnect=list(s.get("interconnect") or []),
+        extra=dict(s.get("extra") or {}),
     ).validate()

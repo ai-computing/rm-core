@@ -118,6 +118,9 @@ transport by name (`kv_transport=`), never by hard-coded import. (Formalized in 
 - The same names are used in research reports (`report.py --metric`) and MLflow, so a
   benchmark, a dashboard and a KPI table refer to the same quantity.
 - A new metric is added to `METRICS` (minor protocol bump) before any component reports it.
+- Migration: a component that already emitted a quantity under its own name MAY keep that series
+  for one more minor protocol version, marked deprecated in its README, while consumers move to the
+  `airm_` name. Consumers SHOULD read the `airm_` series first and fall back to the old one.
 
 ## 7. Security
 
@@ -132,6 +135,14 @@ its tests pass, and `check_sensitive.py` reports clean. Each component's CI SHOU
 against its own entry points.
 
 ## Change log
+
+- 0.1.1 (2026-10-19, rm-core patch; protocol stays 0.1): `AcceleratorProfile` keeps `extra`
+  (CRD field added) and the provider check now verifies the profile round-trip; `NoHardware` moved to
+  `rm_core.errors` so `python -m rm_core.conformance` reports SKIP correctly; §6 migration rule.
+- Known gap, planned for 0.2: `KVTransport.plan()` carries tiers and layouts but no handle to the
+  live buffers. Device-to-device transports (hetero-npu-p2p) need owner-provided buffers, so they
+  bind them out of band (`bind(request_id, ...)`) and cannot PASS conformance without a hardware
+  fixture. 0.2 adds a `MemoryRegion` (owner, fd/offset, size) to plans.
 
 - 0.1 (2026-10): first version — Accelerator/AcceleratorProvider, MemoryTier/KVLayout/KVTransport,
   Workload/Placement, Metrics, AcceleratorProfile CRD, reference implementations, conformance.

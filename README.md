@@ -9,7 +9,7 @@ standard library, Python 3.9+.
 - **Kubernetes**: [`k8s/acceleratorprofile.crd.yaml`](k8s/acceleratorprofile.crd.yaml)
 
 ```bash
-pip install "rm-core @ git+https://github.com/ai-computing/rm-core@v0.1.0"
+pip install "rm-core @ git+https://github.com/ai-computing/rm-core@v0.1.1"
 python -m rm_core.conformance            # check every registered implementation
 ```
 
