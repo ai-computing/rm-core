@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ai-computing/rm-core/blob/main/k8s/airm-placement.schema.json",
+  "title": "airm-placement decisions.json (ai-rm protocol 0.1, PROTOCOL.md section 5.4)",
+  "description": "Value of key decisions.json in ConfigMap airm-placement. Unknown properties are allowed and ignored by readers. Rules a schema cannot express (generation > 0 when there are decisions, updatedAt and placement set when generation > 0, one decision per pool and workload.kind, card vendor matching the airm.ai-computing.io/accelerator label) are checked by rm_core.placement.validate.",
+  "type": "object",
+  "required": ["protocol", "generation", "updatedAt", "decisions"],
+  "properties": {
+    "protocol": {"type": "string", "pattern": "^0\\.\\d+$"},
+    "generation": {"type": "integer", "minimum": 0},
+    "updatedAt": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"}
+      ]
+    },
+    "placement": {"type": "string", "minLength": 1},
+    "decisions": {"type": "array", "items": {"$ref": "#/$defs/decision"}}
+  },
+  "$defs": {
+    "decision": {
+      "type": "object",
+      "required": ["pool", "workload", "acceleratorIds"],
+      "properties": {
+        "pool": {"type": "string", "minLength": 1},
+        "workload": {"$ref": "#/$defs/workload"},
+        "acceleratorIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*/[a-z0-9]+:\\d+$"}
+        },
+        "kvTransport": {"type": "string"},
+        "reason": {"type": "string"}
+      },
+      "if": {"properties": {"acceleratorIds": {"maxItems": 0}}},
+      "then": {"required": ["reason"], "properties": {"reason": {"minLength": 1}}}
+    },
+    "workload": {
+      "type": "object",
+      "required": ["kind", "model"],
+      "properties": {
+        "kind": {"enum": ["prefill", "decode", "serve", "train", "embed", "search"]},
+        "model": {"type": "string", "minLength": 1},
+        "slo": {
+          "type": "object",
+          "propertyNames": {"enum": ["ttft_p90_ms", "ttft_p99_ms", "tpot_p90_ms", "tpot_p99_ms", "e2e_p90_ms", "tok_s_min"]},
+          "additionalProperties": {"type": "number"}
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {"type": "string"},
+          "properties": {
+            "airm.ai-computing.io/accelerator": {
+              "type": "string",
+              "pattern": "^(nvidia|furiosa|rebellions|cpu|amd|intel|other)\\.[A-Za-z0-9][A-Za-z0-9._-]*$"
+            }
+          }
+        },
+        "precision": {"enum": ["fp32", "tf32", "bf16", "fp16", "fp8", "int8", "int4"]},
+        "batchHint": {"oneOf": [{"type": "null"}, {"type": "integer", "minimum": 1}]}
+      }
+    }
+  }
+}

@@ -193,6 +193,7 @@ src/rm_core/
 ├── accelerator.py   # L1: Accelerator, AcceleratorProvider; 벤더·메모리·정밀도·인터커넥트 열거형
 ├── memory.py        # L2: MemoryTier, KVLayout, TransferPlan/Handle/Result, KVTransport
 ├── workload.py      # L3–L4: Workload, PlacementDecision, Placement; 워크로드 종류, SLO 키
+├── placement.py     # L4: airm-placement 문서(decisions.json): 모델, validate(), build()
 ├── metrics.py       # METRICS, TAG_KEYS, Measurement, prometheus_name
 ├── k8s.py           # AcceleratorProfile 객체와 노드 레이블; from_profile()
 ├── registry.py      # entry-point 그룹: available(), load(), groups()
@@ -200,6 +201,7 @@ src/rm_core/
 ├── conformance.py   # python -m rm_core.conformance
 └── errors.py        # ContractError, TransportError, NoHardware
 k8s/acceleratorprofile.crd.yaml   # AcceleratorProfile CRD (airm.ai-computing.io/v1alpha1)
+k8s/airm-placement.schema.json    # airm-placement 문서의 JSON Schema (PROTOCOL §5.4)
 ```
 
 노드 데몬은 장치마다 클러스터 범위 `AcceleratorProfile`을 게시하고, 요약 노드 레이블
@@ -220,6 +222,8 @@ CI는 Python 3.9–3.12에서 테스트를 돌린 뒤 `python -m rm_core.conform
 
 - [x] 프로토콜 v0.1: 계약, `AcceleratorProfile` CRD, 참조 구현, 적합성 검사
 - [x] 0.1.1: `AcceleratorProfile`이 `extra` 유지, `python -m` 실행 시 `NoHardware`를 SKIP으로 보고, 메트릭 이전 규칙
+- [x] 0.1.2 (미릴리스): `airm-placement` 문서 규범화(§5.4), `rm_core.placement` 검증기, JSON Schema,
+      배치 적합성 검사가 문서까지 검증
 - [ ] 프로토콜 v0.2: 전송 계획에 `MemoryRegion`(owner, fd/offset, size)을 넣어, 장치 간 전송이 실제 버퍼를 묶고
       하드웨어 fixture로 적합성 검사를 통과할 수 있게 함
 - [ ] 프로토콜 v0.2: 워크로드 runner 인터페이스(`airm.workloads`) 정식화
@@ -230,7 +234,7 @@ CI는 Python 3.9–3.12에서 테스트를 돌린 뒤 `python -m rm_core.conform
 
 | | |
 |---|---|
-| **명세** | [PROTOCOL.md](PROTOCOL.md) · [AcceleratorProfile CRD](k8s/acceleratorprofile.crd.yaml) |
+| **명세** | [PROTOCOL.md](PROTOCOL.md) · [AcceleratorProfile CRD](k8s/acceleratorprofile.crd.yaml) · [배치 스키마](k8s/airm-placement.schema.json) |
 | **ai-rm** | [Umbrella](https://github.com/ai-computing/ai-rm) · [인터페이스](https://github.com/ai-computing/ai-rm/blob/master/docs/interfaces.md) · [통합 안내](https://github.com/ai-computing/ai-rm/blob/master/docs/integration-guide.md) |
 
 ## 📄 라이선스

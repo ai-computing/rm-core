@@ -10,7 +10,7 @@ from .memory import KVLayout, KVTransport, MemoryTier, TransferHandle, TransferP
 from .metrics import METRICS, Measurement, prometheus_name
 from .workload import Placement, PlacementDecision, Workload
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 PROTOCOL_VERSION = "0.1"
 
 __all__ = [
